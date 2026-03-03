@@ -63,7 +63,17 @@ func (s *Server) Start(ctx context.Context) error {
 }
 
 func (s *Server) Stop(ctx context.Context) error {
-	return nil
+	// stop accepting requests
+	if err := s.httpServer.Shutdown(ctx); err != nil {
+		return fmt.Errorf("HTTP shutdown: %w", err)
+	}
+	// close the worker channel to signal there are no new 
+	// jobs to process 
+	close(s.workerChan)
+	// wait till all workers finish their current jobs
+	s.wg.Wait()
+	// close db
+	return s.dbConn.Close()
 }
 
 func worker(ctx context.Context, job chan struct{}) {
