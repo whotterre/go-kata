@@ -23,7 +23,9 @@ func NewServer(dbConn net.Conn) *Server {
 	return &Server{
 		httpServer: http.Server{
 			Address: ":8080",
-			Handler: mux
+			Handler:      http.TimeoutHandler(mux, 8 * time.Second, "timeout reached"),
+            ReadTimeout:  5 * time.Second,
+            WriteTimeout: 10 * time.Second,
 		},
 		dbConn: dbConn,
 		workerChan = make(chan Job, 100),
@@ -54,9 +56,12 @@ func worker(ctx context.Context, job chan Job, wg *sync.WaitGroup){
 }
 
 func main(){
+	dbConn := net.Pipe()
 	// initialize a new instance of the server
 	server := NewServer(
-		
+		dbConn: dbConn,
 	)
+
+
 	
 }
