@@ -56,7 +56,7 @@ func (s *Server) warmCache(ctx context.Context) {
 
 func (s *Server) Start(ctx context.Context) error {
 	// create a fixed number of goroutines
-	n := 10 // TODO: make this configurable
+	n := 10 
 	for range n {
 		s.wg.Add(1)
 		go s.worker(&s.wg)
@@ -74,7 +74,19 @@ func (s *Server) Stop(ctx context.Context) error {
 	// jobs to process
 	close(s.workerChan)
 	// wait till all workers finish their current jobs
-	s.wg.Wait()
+	waitDone := make(chan struct{})
+	go func() {
+		s.wg.Wait()
+		close(waitDone)
+	}()
+
+	select {
+	case <-ctx.Done():
+		return fmt.Errorf("shutdown timed out: %w", ctx.Err())
+	case <-waitDone:
+		// Everything finished cleanly within the deadline
+		log.Println("All workers finished cleanly")
+	}
 	// close db
 	log.Println("Closing database connection...")
 	return s.dbConn.Close()
@@ -100,8 +112,8 @@ func main() {
 	log.Println("Starting server")
 	// start the server in it's own goroutine
 	if err := server.Start(ctx); err != nil && err != http.ErrServerClosed {
-        log.Fatalf("Server failed to start: %v", err)
-    }
+		log.Fatalf("Server failed to start: %v", err)
+	}
 
 	// add listeners for SIGTERM and SIGINT
 	sigChan := make(chan os.Signal, 1)
