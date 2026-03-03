@@ -22,6 +22,9 @@ type Server struct {
 
 func NewServer(dbConn net.Conn) *Server {
 	mux := http.NewServeMux()
+	mux.HandleFunc("/hello", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("hello"))
+	})
 	return &Server{
 		httpServer: http.Server{
 			Addr:         ":8080",
@@ -59,7 +62,7 @@ func (s *Server) Start(ctx context.Context) error {
 		go s.worker(&s.wg)
 	}
 	go s.warmCache(ctx)
-	return nil
+	return s.httpServer.ListenAndServe()
 }
 
 func (s *Server) Stop(ctx context.Context) error {
@@ -73,6 +76,7 @@ func (s *Server) Stop(ctx context.Context) error {
 	// wait till all workers finish their current jobs
 	s.wg.Wait()
 	// close db
+	log.Println("Closing database connection...")
 	return s.dbConn.Close()
 }
 
@@ -95,7 +99,9 @@ func main() {
 	defer cancel()
 	log.Println("Starting server")
 	// start the server in it's own goroutine
-	go server.Start(ctx)
+	if err := server.Start(ctx); err != nil && err != http.ErrServerClosed {
+        log.Fatalf("Server failed to start: %v", err)
+    }
 
 	// add listeners for SIGTERM and SIGINT
 	sigChan := make(chan os.Signal, 1)
