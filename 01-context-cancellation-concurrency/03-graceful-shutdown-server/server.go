@@ -46,7 +46,7 @@ func (s *Server) warmCache(ctx context.Context) {
 			log.Println("Warming cache....")
 		case <-ctx.Done():
 			log.Println("Cache warmer stopping....")
-			return 
+			return
 		}
 	}
 }
@@ -56,7 +56,7 @@ func (s *Server) Start(ctx context.Context) error {
 	n := 10 // TODO: make this configurable
 	for range n {
 		s.wg.Add(1)
-		go worker(ctx, s.workerChan)
+		go s.worker(&s.wg)
 	}
 	go s.warmCache(ctx)
 	return nil
@@ -67,8 +67,8 @@ func (s *Server) Stop(ctx context.Context) error {
 	if err := s.httpServer.Shutdown(ctx); err != nil {
 		return fmt.Errorf("HTTP shutdown: %w", err)
 	}
-	// close the worker channel to signal there are no new 
-	// jobs to process 
+	// close the worker channel to signal there are no new
+	// jobs to process
 	close(s.workerChan)
 	// wait till all workers finish their current jobs
 	s.wg.Wait()
@@ -76,10 +76,13 @@ func (s *Server) Stop(ctx context.Context) error {
 	return s.dbConn.Close()
 }
 
-func worker(ctx context.Context, job chan struct{}) {
-	// listens for jobs
-	// currJob := <-workerChan
-	fmt.Println()
+func (s *Server) worker(wg *sync.WaitGroup) {
+	defer wg.Done()
+	// listens for jobs indefinitely
+	for range s.workerChan {
+		// process jobs
+		log.Println("Processing jobs...")
+	}
 }
 
 func main() {
@@ -94,7 +97,7 @@ func main() {
 	// start the server in it's own goroutine
 	go server.Start(ctx)
 
-	// add a listener for SIGTERM
+	// add listeners for SIGTERM and SIGINT
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM, syscall.SIGINT)
 
