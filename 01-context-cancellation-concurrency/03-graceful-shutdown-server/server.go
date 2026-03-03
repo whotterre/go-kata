@@ -1,10 +1,16 @@
 package main
 
 import (
-	"net/http"
 	"context"
+	"fmt"
+	"log"
+	"net"
+	"net/http"
+	"os"
 	"os/signal"
 	"sync"
+	"syscall"
+	"time"
 )
 
 type Job struct {
@@ -32,38 +38,52 @@ func NewServer(dbConn net.Conn) *Server {
 	}
 }
 
-var Options () *Server   
 
-
-func (s *Server) Start() error {
-	ctx, cancel := context.WithCancel(context.Background())
+func (s *Server) Start(ctx context.Context) error {
 	// create a fixed number of goroutines
-	n := 10
+	n := 10 // TODO: make this configurable
 	for i := 0; i < n; i++ {
 		s.wg.Add(1)
-		go worker(ctx, s.jobChan)
+		go worker(ctx, s.workerChan)
 	}
+	return nil
 }
 
 func (s *Server) Stop(ctx context.Context) error{
-
+	return nil
 }
 
 func worker(ctx context.Context, job chan Job){
 	// listens for jobs
-	currJob <- job 
+	// currJob := <-workerChan
 	fmt.Println()
 }
 
 func main(){
-	dbConn := net.Pipe()
+	// initialize net.Conn via net.Pipe()
+	dbConn, _ := net.Pipe()
 	// initialize a new instance of the server
-	server := NewServer(
-		dbConn: dbConn,
-	)
-
-	server.Start()
-
+	server := NewServer(dbConn)
+	// create a context for the start method
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	log.Println("Starting server")
+	// start the server in it's own goroutine
+	go server.Start(ctx)
+	
+	// add a listener for SIGTERM 
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+	
+	// block till a signal is recieved 
+	<-sigChan 
+    fmt.Println("\nShutting down gracefully...")
 
 	
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
+    defer shutdownCancel()
+
+    if err := server.Stop(shutdownCtx); err != nil {
+        fmt.Printf("Shutdown failed: %v\n", err)
+    }
 }
