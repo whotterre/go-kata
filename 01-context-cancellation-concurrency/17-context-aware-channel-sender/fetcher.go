@@ -11,14 +11,13 @@ import (
 )
 
 type Result struct {
-	URL string 
-	Body []byte
+	URL   string
+	Body  []byte
 	Error error
 }
 
-
 type DataFetcher struct {
-	client *http.Client	
+	client *http.Client
 }
 
 func NewDataFetcher() *DataFetcher {
@@ -33,52 +32,63 @@ func (f *DataFetcher) Fetch(ctx context.Context, urls []string) <-chan Result {
 	resChan := make(chan Result)
 
 	g, ctx := errgroup.WithContext(ctx)
-	
+
 	for _, url := range urls {
-		url := url 
+		url := url
 		g.Go(func() error {
-		  resp, err := f.client.Get(url)
-		  if err != nil {
-			resChan <- Result{URL: url, Error: err}
-			return nil 
-		  }
-		  defer resp.Body.Close()
-		  
-		  body, err := io.ReadAll(resp.Body)
-		  if err != nil {
-				resChan <- Result{URL: url, Error: err}
+			resp, err := f.client.Get(url)
+			if err != nil {
+				// select or send pattern
+				select {
+				case resChan <- Result{URL: url, Error: err}:
+				case <-ctx.Done():
+					return ctx.Err()
+				}
+			}
+			defer resp.Body.Close()
+
+			body, err := io.ReadAll(resp.Body)
+			if err != nil {
+				select {
+				case resChan <- Result{URL: url, Error: err}:
+				case <-ctx.Done():
+					return ctx.Err()
+				}
 				return nil
+			}
+			select {
+			case resChan <- Result{
+				URL:   url,
+				Body:  body,
+				Error: err,
+			}:
+			case <-ctx.Done():
+				return ctx.Err()
 		  }
-		  resChan <- Result{
-			URL: url,
-			Body: body,
-			Error: err,
-		  }
-		  return nil
+			
+			return nil
 		})
 	}
-	
-	go func () {
-		_ = g.Wait() // wait for all goroutines to exec
+
+	go func() {
+		_ = g.Wait()   // wait for all goroutines to exec
 		close(resChan) // close chan when complete
 	}()
 	return resChan
 }
 
-
-
-func main(){
+func main() {
 	urls := []string{
 		"https://google.com",
 		"https://kibo.com",
 		"https://neeto.com",
 	}
-	
+
 	// two stages: fetch urls and stream downstream
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	
-	// create a new fetcher 
+
+	// create a new fetcher
 	fetcher := NewDataFetcher()
 
 	results := fetcher.Fetch(ctx, urls)
