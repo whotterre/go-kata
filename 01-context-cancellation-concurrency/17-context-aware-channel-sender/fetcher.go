@@ -34,15 +34,16 @@ func (f *DataFetcher) Fetch(ctx context.Context, urls []string) <-chan Result {
 	g, ctx := errgroup.WithContext(ctx)
 
 	for _, url := range urls {
+		url := url
 		g.Go(func() error {
 			req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 			if err != nil {
-				// select or send pattern
 				select {
 				case resChan <- Result{URL: url, Error: err}:
 				case <-ctx.Done():
 					return ctx.Err()
 				}
+				return nil
 			}
 			resp, err := f.client.Do(req)
 			if err != nil {
@@ -52,6 +53,10 @@ func (f *DataFetcher) Fetch(ctx context.Context, urls []string) <-chan Result {
 				case <-ctx.Done():
 					return ctx.Err()
 				}
+				return nil
+			}
+			if resp == nil {
+				return nil
 			}
 			defer resp.Body.Close()
 
@@ -72,8 +77,8 @@ func (f *DataFetcher) Fetch(ctx context.Context, urls []string) <-chan Result {
 			}:
 			case <-ctx.Done():
 				return ctx.Err()
-		  }
-			
+			}
+
 			return nil
 		})
 	}
