@@ -16,11 +16,17 @@ type Cache struct {
 	cache map[string]int
 }
 
-
 func NewCache() *Cache {
 	return &Cache{
 		cache: make(map[string]int),
 	}
+}
+
+func (c *Cache) Put(num int) {
+	c.mu.Lock()
+	c.cache["entry"] = num
+	c.mu.Unlock()
+
 }
 
 type Scheduler struct {
@@ -67,10 +73,8 @@ func main() {
 	job := func(ctx context.Context) error {
 		// Simulate putting something in the cache
 		num := rand.IntN(100)
-		cache.mu.Lock()
-		cache.cache["entry"] = num
 		logger.Info("Refreshed with", "value", num)
-		cache.mu.Unlock()
+		cache.Put(num)
 		return nil
 	}
 
