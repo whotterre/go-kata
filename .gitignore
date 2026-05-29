@@ -4,9 +4,11 @@ vendor/
 pkg/
 .idea
 test/data
+go.sum
 *.exe
 *.dll
 *.so
+05*
 *.dylib
 *.test
 *.out
