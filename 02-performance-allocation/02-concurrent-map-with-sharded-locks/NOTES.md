@@ -21,3 +21,17 @@ Profile summary:
 Takeaway:
 - The benchmark is working, but the hashing path is too expensive for a high-throughput sharded map.
 - Next optimization to try: replace `fmt.Sprint` with type-specific hashing/encoding.
+
+## Implementation note — type conflict and fix
+
+- Problem: I hit a build error caused by duplicate `shard` type declarations (one in the `slow/` variant and one in the main package). Go compiles all files in the same package directory, so identical type names caused conflicting declarations.
+- Fix applied: introduced a local `fastShard` type and `FastShardedMap` in `fastMap.go` (instead of reusing `shard`/`ShardedMap`), and updated tests/benchmarks to exercise the fast implementation.
+
+## Benchmark comparison (before → after)
+
+- Slow (original): `BenchmarkShardedMapParallel-8` — 112.4 ns/op, 12 B/op, 1 allocs/op
+- Fast (type-specific hashing): `BenchmarkShardedMapParallel-8` — 88.15 ns/op, 6 B/op, 0 allocs/op
+
+Notes:
+- The improvement comes mainly from removing `fmt.Sprint` allocations on the hot path and using a small stack buffer + `binary.LittleEndian` for integer keys.
+- Next actions: re-run CPU profile on the fast map, consider alternative lightweight integer mixers to remove `fnv` overhead.
