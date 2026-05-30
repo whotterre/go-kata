@@ -7,7 +7,7 @@ import (
 )
 
 func BenchmarkShardedMapParallel(b *testing.B) {
-	m := NewShardedMap[int, string](64)
+	m := NewFastShardedMap[int, string](64)
 	b.ReportAllocs()
 	b.ResetTimer()
 	b.RunParallel(func(pb *testing.PB) {
