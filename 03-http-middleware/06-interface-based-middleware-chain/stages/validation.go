@@ -17,8 +17,10 @@ type ValidationProcessor struct {
 
 type ValidationOption func(*ValidationProcessor)
 
-func NewValidatorProcessor(opts ...ValidationOption) common.Processor {
-	processor := &ValidationProcessor{}
+func NewValidatorProcessor(next common.Processor, opts ...ValidationOption) common.Processor {
+	processor := &ValidationProcessor{
+			next: next,
+	}
 
 	for _, opt := range opts {
 		opt(processor)

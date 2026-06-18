@@ -38,8 +38,10 @@ func (p *FilteringProcessor) Process(ctx context.Context, ev common.Event) ([]co
 	return p.next.Process(ctx, ev)
 }
 
-func NewFilteringProcessor(opts ...FilteringOption) common.Processor {
-	processor := &FilteringProcessor{}
+func NewFilteringProcessor(next common.Processor, opts ...FilteringOption) common.Processor {
+	processor := &FilteringProcessor{
+		next: next,
+	}
 
 	for _, opt := range opts {
 		opt(processor)

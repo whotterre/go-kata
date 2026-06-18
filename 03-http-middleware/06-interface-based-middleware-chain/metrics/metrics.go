@@ -1,8 +1,9 @@
 package metrics
 
 import (
-	"sync"
 	"log" // replace with slog in a later impl (all hail the odius Procrastinator...inator)
+	"os"
+	"sync"
 	"time"
 )
 
@@ -10,6 +11,13 @@ import (
 type MetricsCollector interface {
     CountEvent(stage string)
     MeasureLatency(stage string, duration time.Duration)
+}
+
+func NewMetricsCollector() MetricsCollector {
+	return &metricsCollector{
+		logger: log.New(os.Stdout, "[METRICS] ", log.LstdFlags),
+		counts: make(map[string]int),
+	}
 }
 
 type metricsCollector struct {
