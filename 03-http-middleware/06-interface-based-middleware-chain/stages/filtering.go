@@ -20,7 +20,7 @@ func (p *FilteringProcessor) Process(ctx context.Context, ev common.Event) ([]co
 	start := time.Now()
 	defer func() {
 		if p.metrics != nil {
-			p.metrics.MeasureLatency("filtering", time.Since(start))
+			p.metrics.MeasureLatency("filter", time.Since(start))
 		}
 	}()
 	if err := ctx.Err(); err != nil {
@@ -32,7 +32,9 @@ func (p *FilteringProcessor) Process(ctx context.Context, ev common.Event) ([]co
 		return []common.Event{}, nil
 	}
 
-
+	if p.metrics != nil {
+	   p.metrics.CountEvent("filter")
+	}
 	return p.next.Process(ctx, ev)
 }
 
