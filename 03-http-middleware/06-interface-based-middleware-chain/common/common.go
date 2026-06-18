@@ -7,6 +7,7 @@ import (
 type Event struct {
 	ID   string
 	Type string
+	Message string 
 }
 
 
