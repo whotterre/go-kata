@@ -1,14 +1,17 @@
 package stages
 
 import (
+	"strings"
 	"context"
+	"math/rand/v2"
+	"time"
 
 	"github.com/medunes/go-kata/03-http-middleware/06-interface-based-middleware-chain/common"
 	"github.com/medunes/go-kata/03-http-middleware/06-interface-based-middleware-chain/metrics"
 )
 
-// Enrichment stage
 
+// Enrichment stage
 type EnrichmentOption func(*EnrichmentProcessor)
 
 type EnrichmentProcessor struct{
@@ -30,12 +33,37 @@ func NewEnrichmentProcessor(next common.Processor, opts ...EnrichmentOption) com
 }
 
 
-func (p *EnrichmentProcessor) Process(context.Context, common.Event) ([]common.Event, error) {
-	return []common.Event{}, nil
+func (p *EnrichmentProcessor) Process(ctx context.Context, ev common.Event) ([]common.Event, error) {
+    start := time.Now()
+	defer func() {
+		if p.metrics != nil {
+			p.metrics.MeasureLatency("enrichment", time.Since(start))
+		}
+	}()
+    if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+    
+    // Enrich here 
+    ev.Message = genRandomString(8)
+    if p.metrics != nil {
+       p.metrics.CountEvent("enrichment") 
+    }
+	return p.next.Process(ctx, ev)
 }
 
 func WithEnrichmentMetricsCollector(collector metrics.MetricsCollector) EnrichmentOption {
 	return func(p *EnrichmentProcessor) {
 		p.metrics = collector
 	}
+}
+
+func genRandomString(length int) string {
+    var res strings.Builder
+    charSet := "abcdefghijklmnopqrstuvwxyz"
+    for range length {
+        chosen := rand.IntN(len(charSet)) 
+        res.WriteString(string(charSet[chosen]))
+    }
+    return res.String()
 }
